@@ -123,3 +123,7 @@ obj-y				+= ieee802154/
 obj-y				+= clk/
 
 obj-$(CONFIG_HWSPINLOCK)	+= hwspinlock/
+
+obj-$(CONFIG_SAMSUNG_MODULES)   += samsung/
+obj-$(CONFIG_SAMSUNG_PHONE_SVNET) += svnet/
+obj-$(CONFIG_SAMSUNG_PHONE_TTY) += dpram/
