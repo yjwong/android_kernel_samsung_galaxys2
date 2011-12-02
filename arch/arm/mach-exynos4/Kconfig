@@ -186,6 +186,23 @@ config MACH_NURI
 	help
 	  Machine support for Samsung Mobile NURI Board.
 
+config MACH_C1
+	bool "C1"
+	select CPU_EXYNOS4210
+	select S3C_DEV_RTC
+	select S3C_DEV_WDT
+	select S3C_DEV_I2C1
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_HSMMC3
+	select EXYNOS4_DEV_PD
+	select EXYNOS4_DEV_SYSMMU
+	select EXYNOS4_SETUP_I2C1
+	select EXYNOS4_SETUP_SDHCI
+	help
+	  Machine support for Samsung Galaxy S II
+
 endmenu
 
 comment "Configuration for HSMMC bus width"
