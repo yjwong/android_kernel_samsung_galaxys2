@@ -128,4 +128,10 @@ source "drivers/hwspinlock/Kconfig"
 
 source "drivers/clocksource/Kconfig"
 
+source "drivers/samsung/Kconfig"
+
+source "drivers/svnet/Kconfig"
+
+source "drivers/dpram/Kconfig"
+
 endmenu
