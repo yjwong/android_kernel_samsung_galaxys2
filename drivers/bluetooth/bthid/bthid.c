@@ -284,7 +284,7 @@ static const struct file_operations bthid_fops = {
     .open    = bthid_open,
     .release = bthid_release,
     .write   = bthid_write,
-    .ioctl   = bthid_ioctl,
+    .unlocked_ioctl   = bthid_ioctl,
 };
 
 static struct miscdevice bthid_misc = {
