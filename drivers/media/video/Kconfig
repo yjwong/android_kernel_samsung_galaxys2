@@ -870,6 +870,18 @@ config SOC_CAMERA_OV9740
 	help
 	  This is a ov9740 camera driver
 
+config SOC_CAMERA_M5MO
+        tristate "M5MO supporting camera driver"
+        depends on I2C && VIDEO_V4L2
+        ---help---
+          This driver supports M5MO SoC camera module
+
+config SOC_CAMERA_S5K5BAFX
+	tristate "S5K5BAFX supporting camera driver"
+	depends on I2C && VIDEO_V4L2 && MACH_C1
+	---help---
+	  This driver supports S5K5BAFX SoC camera module
+
 config MX1_VIDEO
 	bool
 
