@@ -29,6 +29,8 @@
 #include <plat/pd.h>
 
 #include <mach/map.h>
+#include <mach/gpio.h>
+
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define SMDKC210_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\

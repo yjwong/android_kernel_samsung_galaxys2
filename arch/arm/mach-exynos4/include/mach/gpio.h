@@ -150,6 +150,10 @@ enum s5p_gpio_number {
 /* define the number of gpios we need to the one after the GPZ() range */
 #define ARCH_NR_GPIOS		(EXYNOS4_GPZ(EXYNOS4_GPIO_Z_NR) +	\
 				 CONFIG_SAMSUNG_GPIO_EXTRA + 1)
+				 
+#if defined(CONFIG_MACH_C1)
+    #include "gpio-c1.h"
+#endif
 
 #include <asm-generic/gpio.h>
 

@@ -41,7 +41,7 @@ static int Si4709_ioctl(struct inode *, struct file *, unsigned int,
 static const struct file_operations Si4709_fops = {
 	.owner = THIS_MODULE,
 	.open = Si4709_open,
-	.ioctl = Si4709_ioctl,
+	.unlocked_ioctl = Si4709_ioctl,
 	.release = Si4709_release,
 };
 
