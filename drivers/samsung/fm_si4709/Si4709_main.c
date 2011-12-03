@@ -803,7 +803,7 @@ int __init Si4709_driver_init(void)
 	s3c_gpio_cfgpin(Si4709_int, S3C_GPIO_SFN(0xF));
 	s3c_gpio_setpull(Si4709_int, S3C_GPIO_PULL_NONE);
 
-	set_irq_type(Si4709_irq, IRQ_TYPE_EDGE_FALLING);
+	irq_set_irq_type(Si4709_irq, IRQ_TYPE_EDGE_FALLING);
 
 	/*KGVS: Configuring the GPIO_FM_INT in mach-jupiter.c */
 	ret = request_irq(Si4709_irq, Si4709_isr, IRQF_DISABLED,

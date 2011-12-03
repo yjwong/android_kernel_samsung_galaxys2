@@ -10,7 +10,6 @@
  * 2009.03 - Currently managed by  SungHwan.yun <sunghwan.yun@samsung.com> @LDK@
  *
  */
-#include <linux/smp_lock.h>
 #include <linux/time.h>
 #include <linux/highuid.h>
 #include <linux/pagemap.h>
@@ -20,6 +19,7 @@
 #include <linux/buffer_head.h>
 #include <linux/mpage.h>
 #include <linux/slab.h>
+#include <linux/semaphore.h>
 #include "j4fs.h"
 
 #if defined(J4FS_USE_XSR)
@@ -1221,7 +1221,7 @@ int j4fs_fill_super(struct super_block *sb, void *data, int silent)
 	struct j4fs_sb_info * sbi;
 	struct j4fs_super_block * es;
 	struct inode *root;
-	u32 tmp, len,ret;
+	u32 ret;
 
 	T(J4FS_TRACE_FS,("%s %d\n",__FUNCTION__,__LINE__));
 
@@ -1292,7 +1292,7 @@ int j4fs_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed;
 	}
 
-	init_MUTEX(&device_info.grossLock);
+	sema_init(&device_info.grossLock, 1);
 
 #ifdef J4FS_TRANSACTION_LOGGING
 	ret=fsd_initialize_transaction();
@@ -1322,11 +1322,11 @@ failed:
 }
 
 
-int j4fs_get_sb(struct file_system_type *fs_type, int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+int j4fs_mount(struct file_system_type *fs_type, int flags, const char *dev_name, void *data)
 {
 	T(J4FS_TRACE_FS,("%s %d\n",__FUNCTION__,__LINE__));
 
-	return get_sb_bdev(fs_type, flags, dev_name, data, j4fs_fill_super, mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, j4fs_fill_super);
 }
 
 struct kmem_cache * j4fs_inode_cachep;
@@ -1386,7 +1386,7 @@ void destroy_inodecache(void)
 struct file_system_type j4fs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "j4fs",
-	.get_sb		= j4fs_get_sb,
+	.mount		= j4fs_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };

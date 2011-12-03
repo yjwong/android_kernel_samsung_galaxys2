@@ -48,7 +48,7 @@ static bool g_bTimerStarted = false;
 static struct timer_list g_timerList;
 static int g_nWatchdogCounter = 0;
 
-DECLARE_MUTEX(g_hMutex);
+DEFINE_MUTEX(g_hMutex);
 
 /* Forward declarations */
 static void VibeOSKernelLinuxStartTimer(void);

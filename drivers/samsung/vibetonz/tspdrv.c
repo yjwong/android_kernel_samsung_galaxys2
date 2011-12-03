@@ -133,7 +133,7 @@ int regulator_hapticmotor_enabled;
 struct max8997_haptic_info {
 	struct device		*dev;
 	struct max8997_dev	*max8997;
-	struct i2c_client	*hmotor;
+	struct i2c_client	*haptic;
 };
 
 static int set_vibetonz(int timeout)
@@ -209,7 +209,8 @@ static int get_time_for_vibetonz(struct timed_output_dev *dev)
 
 	if (hrtimer_active(&timer))	{
 		ktime_t r = hrtimer_get_remaining(&timer);
-		remaining = r.tv.sec * 1000 + r.tv.nsec / 1000000;
+		//remaining = r.tv.sec * 1000 + r.tv.nsec / 1000000;
+		remaining = ktime_to_ns(r);
 	} else {
 		remaining = 0;
 	}
@@ -268,7 +269,7 @@ static const struct file_operations fops = {
 	.owner =    THIS_MODULE,
 	.read =     read,
 	.write =    write,
-	.ioctl =    ioctl,
+	.unlocked_ioctl =    ioctl,
 	.open =     open,
 	.release =  release
 };
@@ -319,8 +320,8 @@ static int __devinit max8997_haptic_probe(struct platform_device *pdev)
 
 	info->dev = &pdev->dev;
 	info->max8997 = max8997;
-	info->hmotor = max8997->hmotor;
-	haptic_i2c = max8997->hmotor;
+	info->haptic = max8997->haptic;
+	haptic_i2c = max8997->haptic;
 
 	platform_set_drvdata(pdev, info);
 
