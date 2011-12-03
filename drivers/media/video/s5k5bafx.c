@@ -15,8 +15,9 @@
 #include <linux/delay.h>
 #include <linux/version.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
-#include <media/v4l2-i2c-drv.h>
+
 #ifdef CONFIG_VIDEO_SAMSUNG_V4L2
 #include <linux/videodev2_samsung.h>
 #endif
@@ -1658,12 +1659,28 @@ static const struct i2c_device_id s5k5bafx_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, s5k5bafx_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = S5K5BAFX_DRIVER_NAME,
-	.probe = s5k5bafx_probe,
-	.remove = s5k5bafx_remove,
-	.id_table = s5k5bafx_id,
+static struct i2c_driver s5k5bafx_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= S5K5BAFX_DRIVER_NAME,
+	},
+	.probe		= s5k5bafx_probe,
+	.remove		= s5k5bafx_remove,
+	.id_table	= s5k5bafx_id,
 };
+
+static __init int init_s5k5bafx(void)
+{
+	return i2c_add_driver(&s5k5bafx_driver);
+}
+
+static __exit void exit_s5k5bafx(void)
+{
+	i2c_del_driver(&s5k5bafx_driver);
+}
+
+module_init(init_s5k5bafx);
+module_exit(exit_s5k5bafx);
 
 MODULE_DESCRIPTION("S5K5BAFX ISP driver");
 MODULE_AUTHOR("DongSeong Lim<dongseong.lim@samsung.com>");

@@ -38,6 +38,11 @@ struct s5k5bafx_exif {
  */
 struct s5k5bafx_state {
 	struct v4l2_subdev sd;
+	struct v4l2_ctrl_handler hdl;
+	struct v4l2_ctrl *mute;
+	struct v4l2_ctrl *vol;
+	struct v4l2_ctrl *bal;
+	struct v4l2_ctrl *loud;
 	/*
 	 * req_fmt is the requested format from the application.
 	 * set_fmt is the output format of the camera. Finally FIMC

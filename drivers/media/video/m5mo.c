@@ -14,8 +14,8 @@
  */
 
 #include <linux/i2c.h>
-#include <media/v4l2-i2c-drv.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -2908,13 +2908,29 @@ static const struct i2c_device_id m5mo_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, m5mo_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = M5MO_DRIVER_NAME,
-	.probe = m5mo_probe,
-	.remove = m5mo_remove,
-	.id_table = m5mo_id,
+static struct i2c_driver m5mo_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= M5MO_DRIVER_NAME,
+	},
+	.probe		= m5mo_probe,
+	.remove		= m5mo_remove,
+	.id_table	= m5mo_id,
 };
 
+static __init int init_m5mo(void)
+{
+	return i2c_add_driver(&m5mo_driver);
+}
+
+static __exit void exit_m5mo(void)
+{
+	i2c_del_driver(&m5mo_driver);
+}
+
+module_init(init_m5mo);
+module_exit(exit_m5mo);
+
 MODULE_AUTHOR("Goeun Lee <ge.lee@samsung.com>");
-MODULE_DESCRIPTION("driver for Fusitju M5MO LS 8MP camera");
+MODULE_DESCRIPTION("Driver for Fusitju M5MO LS 8MP camera");
 MODULE_LICENSE("GPL");

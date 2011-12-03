@@ -142,6 +142,11 @@ struct m5mo_exif {
 struct m5mo_state {
 	struct m5mo_platform_data *pdata;
 	struct v4l2_subdev sd;
+	struct v4l2_ctrl_handler hdl;
+	struct v4l2_ctrl *mute;
+	struct v4l2_ctrl *vol;
+	struct v4l2_ctrl *bal;
+	struct v4l2_ctrl *loud;
 	
 	struct wake_lock wake_lock;
 
