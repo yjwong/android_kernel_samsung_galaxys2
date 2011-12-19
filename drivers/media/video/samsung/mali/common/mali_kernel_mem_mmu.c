@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2011 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -18,6 +18,7 @@
 #include "mali_kernel_mem_os.h"
 #include "mali_kernel_session_manager.h"
 #include "mali_kernel_core.h"
+#include "mali_kernel_rendercore.h"
 
 #if defined USING_MALI400_L2_CACHE
 #include "mali_kernel_l2_cache.h"
@@ -205,6 +206,7 @@ typedef struct mali_kernel_memory_mmu
 	memory_session * active_session; /**< Active session, NULL if no session is active */
 	u32 usage_count; /**< Number of nested activations of the active session */
 	_mali_osk_list_t callbacks; /**< Callback registered for MMU idle notification */
+	void *core;
 
 	int in_page_fault_handler;
 
@@ -658,8 +660,9 @@ static _mali_osk_errcode_t mali_memory_core_session_begin(struct mali_session_da
 	for (i = 0; i < MALI_MMU_PAGE_SIZE/4; i++)
 	{
 		/* mark each page table as not present */
-		_mali_osk_mem_iowrite32(session_data->page_directory_mapped, sizeof(u32) * i, 0);
+		_mali_osk_mem_iowrite32_relaxed(session_data->page_directory_mapped, sizeof(u32) * i, 0);
 	}
+	_mali_osk_write_mem_barrier();
 
 	/* page_table_mapped[] is already set to NULL by _mali_osk_calloc call */
 
@@ -841,8 +844,9 @@ static _mali_osk_errcode_t fill_page(mali_io_address mapping, u32 data)
 
 	for(i = 0; i < MALI_MMU_PAGE_SIZE/4; i++)
 	{
-		_mali_osk_mem_iowrite32( mapping, i * sizeof(u32), data);
+		_mali_osk_mem_iowrite32_relaxed( mapping, i * sizeof(u32), data);
 	}
+	_mali_osk_mem_barrier();
 	MALI_SUCCESS;
 }
 
@@ -1185,6 +1189,7 @@ static _mali_osk_errcode_t mali_kernel_memory_mmu_interrupt_handler_upper_half(v
 {
 	mali_kernel_memory_mmu * mmu;
 	u32 int_stat;
+	mali_core_renderunit *core;
 
 	if (mali_benchmark) MALI_SUCCESS;
 
@@ -1192,6 +1197,12 @@ static _mali_osk_errcode_t mali_kernel_memory_mmu_interrupt_handler_upper_half(v
 
 	MALI_DEBUG_ASSERT_POINTER(mmu);
 
+	core = (mali_core_renderunit *)mmu->core;
+	if(core && (CORE_OFF == core->state))
+	{
+		MALI_SUCCESS;
+	}
+	
 	/* check if it was our device which caused the interrupt (we could be sharing the IRQ line) */
 	int_stat = mali_mmu_register_read(mmu, MALI_MMU_REGISTER_INT_STATUS);
 	if (0 == int_stat)
@@ -1435,6 +1446,7 @@ static void mali_kernel_memory_mmu_interrupt_handler_bottom_half(void * data)
 {
 	mali_kernel_memory_mmu * mmu;
 	u32 raw, fault_address, status;
+	mali_core_renderunit *core;
 
 	if (NULL == data)
 	{
@@ -1443,10 +1455,18 @@ static void mali_kernel_memory_mmu_interrupt_handler_bottom_half(void * data)
 	}
 	mmu = (mali_kernel_memory_mmu*)data;
 
-
 	MALI_DEBUG_PRINT(4, ("Locking subsystems\n"));
 	/* lock all subsystems */
 	_mali_kernel_core_broadcast_subsystem_message(MMU_KILL_STEP0_LOCK_SUBSYSTEM, (u32)mmu);
+
+	/* Pointer to core holding this MMU */
+	core = (mali_core_renderunit *)mmu->core;
+
+	if(CORE_OFF == core->state)
+	{
+		_mali_kernel_core_broadcast_subsystem_message(MMU_KILL_STEP4_UNLOCK_SUBSYSTEM, (u32)mmu);
+		return;
+	}
 
 	raw = mali_mmu_register_read(mmu, MALI_MMU_REGISTER_INT_RAWSTAT);
 	status = mali_mmu_register_read(mmu, MALI_MMU_REGISTER_STATUS);
@@ -2099,9 +2119,13 @@ _mali_osk_errcode_t mali_mmu_get_table_page(u32 *table_page, mali_io_address *ma
 		_mali_osk_set_nonatomic_bit(0, alloc->usage_map);
 
 		if (alloc->num_pages > 1)
+		{
 			_mali_osk_list_add(&alloc->list, &page_table_cache.partial);
+		}
 		else
+		{
 			_mali_osk_list_add(&alloc->list, &page_table_cache.full);
+		}
 
     	_mali_osk_lock_signal(page_table_cache.lock, _MALI_OSK_LOCKMODE_RW);
 		*table_page = alloc->pages.phys_base; /* return the first page */
@@ -2161,19 +2185,22 @@ void mali_mmu_release_table_page(u32 pa)
 
 			_mali_osk_memset((void*)( ((u32)alloc->pages.mapping) + (pa - start) ), 0, MALI_MMU_PAGE_SIZE);
 
-			if (0 == alloc->usage_count) {
+
+			if (0 == alloc->usage_count)
+			{
 				/* empty, release whole page alloc */
 				_mali_osk_list_del(&alloc->list);
 				alloc->pages.release(&alloc->pages);
 				_mali_osk_free(alloc->usage_map);
 				_mali_osk_free(alloc);
-			} else {
-				/* transfer to partial list */
-				_mali_osk_list_move
-					(&alloc->list, &page_table_cache.partial);
 			}
-
-		_mali_osk_lock_signal(page_table_cache.lock, _MALI_OSK_LOCKMODE_RW);
+			else
+			{
+				/* transfer to partial list */
+				_mali_osk_list_move(&alloc->list, &page_table_cache.partial);
+			}
+			
+           	_mali_osk_lock_signal(page_table_cache.lock, _MALI_OSK_LOCKMODE_RW);
         	MALI_DEBUG_PRINT(4, ("(full list)Released table page 0x%08X to the cache\n", pa));
 			return;
 		}
@@ -2182,6 +2209,17 @@ void mali_mmu_release_table_page(u32 pa)
 	MALI_DEBUG_PRINT(1, ("pa 0x%x not found in the page table cache\n", (void*)pa));
 
    	_mali_osk_lock_signal(page_table_cache.lock, _MALI_OSK_LOCKMODE_RW);
+}
+
+void mali_memory_core_mmu_owner(void *core, void *mmu_ptr)
+{
+        mali_kernel_memory_mmu *mmu;
+
+        MALI_DEBUG_ASSERT_POINTER(mmu_ptr);
+        MALI_DEBUG_ASSERT_POINTER(core);
+
+        mmu = (mali_kernel_memory_mmu *)mmu_ptr;
+        mmu->core = core;
 }
 
 void* mali_memory_core_mmu_lookup(u32 id)
@@ -2673,8 +2711,9 @@ static _mali_osk_errcode_t mali_address_manager_map(mali_memory_allocation * des
 	for ( ; mali_address < mali_address_end; mali_address += MALI_MMU_PAGE_SIZE, current_phys_addr += MALI_MMU_PAGE_SIZE)
 	{
         MALI_DEBUG_ASSERT_POINTER(session_data->page_entries_mapped[MALI_MMU_PDE_ENTRY(mali_address)]);
-		_mali_osk_mem_iowrite32(session_data->page_entries_mapped[MALI_MMU_PDE_ENTRY(mali_address)], MALI_MMU_PTE_ENTRY(mali_address) * sizeof(u32), current_phys_addr | MALI_MMU_FLAGS_WRITE_PERMISSION | MALI_MMU_FLAGS_READ_PERMISSION | MALI_MMU_FLAGS_PRESENT);
+		_mali_osk_mem_iowrite32_relaxed(session_data->page_entries_mapped[MALI_MMU_PDE_ENTRY(mali_address)], MALI_MMU_PTE_ENTRY(mali_address) * sizeof(u32), current_phys_addr | MALI_MMU_FLAGS_WRITE_PERMISSION | MALI_MMU_FLAGS_READ_PERMISSION | MALI_MMU_FLAGS_PRESENT);
 	}
+	_mali_osk_write_mem_barrier();
 
 #if defined USING_MALI400_L2_CACHE
 	if (1 == has_active_mmus)
@@ -2794,6 +2833,12 @@ static _mali_osk_errcode_t _mali_ukk_mem_munmap_internal( _mali_uk_mem_munmap_s 
 	 */
 	_MALI_OSK_LIST_FOREACHENTRY(mmu, temp_mmu, &session_data->active_mmus, mali_kernel_memory_mmu, session_link)
 	{
+		u32 status;
+		status = mali_mmu_register_read(mmu, MALI_MMU_REGISTER_STATUS);
+		if ( MALI_MMU_STATUS_BIT_PAGE_FAULT_ACTIVE == (status & MALI_MMU_STATUS_BIT_PAGE_FAULT_ACTIVE) ) {
+			MALI_DEBUG_PRINT(2, ("Stopped stall attempt for mmu with id %d since it is in page fault mode.\n", mmu->id));
+			continue;
+		}
 		_mali_osk_lock_wait(mmu->lock, _MALI_OSK_LOCKMODE_RW);
 
 		/*

@@ -107,7 +107,7 @@ DEFINES += -DMALI_POWER_MGMT_TEST_SUITE=$(USING_MALI_PMM_TESTSUITE)
 DEFINES += -DMALI_MAJOR_PREDEFINE=$(USING_MALI_MAJOR_PREDEFINE)
 DEFINES += -DMALI_DVFS_ENABLED=$(USING_MALI_DVFS_ENABLED)
 DEFINES += -DUSING_MALI_PMM_EARLYSUSPEND=$(USING_MALI_PMM_EARLYSUSPEND)
-DEFINES += -DMALI_STATE_TRACKING=1
+DEFINES += -DMALI_STATE_TRACKING=0
 #DEFINES += -DUSING_KERNEL_WITH_DMA_ALLOC_PHYS_PAGE=$(USING_KERNEL_WITH_DMA_ALLOC_PHYS_PAGE)
 
 ifeq ($(BUILD),debug)
@@ -131,8 +131,8 @@ obj-$(CONFIG_VIDEO_MALI400MP)		+= mali.o
 # Use our defines when compiling
 # MALI
 INCLUDES = \
-                -I$(KBUILD_SRC) \
-                -I$(KBUILD_OUTPUT) \
+        -I$(KBUILD_SRC) \
+        -I$(KBUILD_OUTPUT) \
 		-I$(MALI_FILE_PREFIX)\
 		-I$(MALI_FILE_PREFIX)/platform\
 		-I$(MALI_FILE_PREFIX)/common \
@@ -180,8 +180,8 @@ UKKFILES=\
         $(FILES_PREFIX)$(OSKOS)/mali_ukk_mem.o \
         $(FILES_PREFIX)$(OSKOS)/mali_ukk_gp.o \
         $(FILES_PREFIX)$(OSKOS)/mali_ukk_pp.o \
-        $(FILES_PREFIX)$(OSKOS)/mali_ukk_core.o \
-        $(FILES_PREFIX)$(OSKOS)/mali_ukk_vsync.o
+        $(FILES_PREFIX)$(OSKOS)/mali_ukk_vsync.o \
+        $(FILES_PREFIX)$(OSKOS)/mali_ukk_core.o
 
 mali-y := \
 	$(KBUILDROOT)common/mali_kernel_core.o \
@@ -189,7 +189,8 @@ mali-y := \
 	$(KBUILDROOT)linux/mali_osk_indir_mmap.o \
 	$(KBUILDROOT)common/mali_kernel_rendercore.o \
 	$(KBUILDROOT)common/mali_kernel_descriptor_mapping.o \
-	$(KBUILDROOT)common/mali_kernel_vsync.o \
+    $(KBUILDROOT)common/mali_kernel_vsync.o \
+    $(KBUILDROOT)linux/mali_kernel_sysfs.o \
 	$(KBUILDROOT)$(MALI_PLATFORM_FILE) \
 	$(KBUILDROOT)$(OSKFILES) \
 	$(KBUILDROOT)$(UKKFILES) 

@@ -1,5 +1,5 @@
-/*
- * Copyright (C) 2010 ARM Limited. All rights reserved.
+/**
+ * Copyright (C) 2010-2011 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -35,7 +35,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/driver.h>
 
-#include "mali_platform.h"
+#include "mali_platform.h" 
 #include "mali_osk.h"
 #include "mali_uk_types.h"
 #include "mali_pmm.h"
@@ -46,6 +46,10 @@
 #include "mali_device_pause_resume.h"
 #include "mali_linux_pm.h"
 
+#if MALI_GPU_UTILIZATION
+#include "mali_kernel_utilization.h"
+#endif /* MALI_GPU_UTILIZATION */
+
 #if MALI_POWER_MGMT_TEST_SUITE
 #ifdef CONFIG_PM
 #include "mali_linux_pm_testsuite.h"
@@ -53,9 +57,7 @@ unsigned int pwr_mgmt_status_reg = 0;
 #endif /* CONFIG_PM */
 #endif /* MALI_POWER_MGMT_TEST_SUITE */
 
-#if MALI_STATE_TRACKING
-	int is_os_pmm_thread_waiting = -1;
-#endif /* MALI_STATE_TRACKING */
+static int is_os_pmm_thread_waiting = 0;
 
 /* kernel should be configured with power management support */
 #ifdef CONFIG_PM
@@ -128,10 +130,7 @@ const char* const mali_pmm_recording_events[_MALI_DEVICE_MAX_PMM_EVENTS] = {
 
 unsigned int mali_timeout_event_recording_on = 0;
 unsigned int mali_job_scheduling_events_recording_on = 0;
-
-#if MALI_PMM_INTERNAL_TESTING
 unsigned int is_mali_pmu_present = 0;
-#endif /* MALI_PMM_INTERNAL_TESTING */
 #endif /* MALI_POWER_MGMT_TEST_SUITE */
 
 /* Function prototypes */
@@ -160,6 +159,8 @@ static void mali_pm_late_resume(struct early_suspend *mali_dev);
 
 #ifndef CONFIG_HAS_EARLYSUSPEND
 /* OS suspend and resume callbacks */
+#if !MALI_PMM_RUNTIME_JOB_CONTROL_ON
+#ifndef CONFIG_PM_RUNTIME
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(LINUX_KERNEL_MAJOR_VERSION,LINUX_KERNEL_MINOR_VERSION,LINUX_KERNEL_DEVELOPMENT_VERSION))
 static int mali_pm_os_suspend(struct platform_device *pdev, pm_message_t state);
 #else
@@ -171,7 +172,8 @@ static int mali_pm_os_resume(struct platform_device *pdev);
 #else
 static int mali_pm_os_resume(struct device *dev);
 #endif
-#endif //CONFIG_HAS_EARLYSUSPEND
+#endif /* CONFIG_PM_RUNTIME */
+#endif /* MALI_PMM_RUNTIME_JOB_CONTROL_ON */
 
 /* OS Hibernation suspend callback */
 static int mali_pm_os_suspend_on_hibernation(struct device *dev);
@@ -192,11 +194,13 @@ static const struct dev_pm_ops mali_dev_pm_ops = {
 #endif  /* CONFIG_PM_RUNTIME */
 
 #ifndef CONFIG_HAS_EARLYSUSPEND
+#if !MALI_PMM_RUNTIME_JOB_CONTROL_ON
 #ifndef CONFIG_PM_RUNTIME
 	.suspend = mali_pm_os_suspend,
 	.resume = mali_pm_os_resume,
-#endif
-#endif
+#endif /* CONFIG_PM_RUNTIME */
+#endif /* MALI_PMM_RUNTIME_JOB_CONTROL_ON */
+#endif /* CONFIG_HAS_EARLYSUSPEND */
 	.freeze = mali_pm_os_suspend_on_hibernation,
 	.poweroff = mali_pm_os_suspend_on_hibernation,
 	.thaw = mali_pm_os_resume_on_hibernation,
@@ -221,10 +225,12 @@ static struct platform_driver mali_plat_driver = {
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(LINUX_KERNEL_MAJOR_VERSION,LINUX_KERNEL_MINOR_VERSION,LINUX_KERNEL_DEVELOPMENT_VERSION))
 #ifndef CONFIG_HAS_EARLYSUSPEND
 #ifndef CONFIG_PM_RUNTIME
+#if !MALI_PMM_RUNTIME_JOB_CONTROL_ON
 	.suspend = mali_pm_os_suspend,
 	.resume  = mali_pm_os_resume,
-#endif //CONFIG_PM_RUNTIME
-#endif //CONFIG_HAS_EARLYSUSPEND
+#endif /* CONFIG_PM_RUNTIME */
+#endif /* MALI_PMM_RUNTIME_JOB_CONTROL_ON */
+#endif /* CONFIG_HAS_EARLYSUSPEND */
 	.pm = &mali_pm_operations,
 #endif
 
@@ -263,7 +269,6 @@ static void _mali_release_pm(struct device *device)
 }
 
 #if MALI_POWER_MGMT_TEST_SUITE
-#if MALI_PMM_INTERNAL_TESTING
 void mali_is_pmu_present(void)
 {
 	int temp = 0;
@@ -277,7 +282,6 @@ void mali_is_pmu_present(void)
 		is_mali_pmu_present = 1;
 	}
 }
-#endif /* MALI_PMM_INTERNAL_TESTING */
 #endif /* MALI_POWER_MGMT_TEST_SUITE */
 #endif /* MALI_LICENSE_IS_GPL */
 
@@ -317,13 +321,9 @@ int mali_device_suspend(unsigned int event_id, struct task_struct **pwr_mgmt_thr
 	*pwr_mgmt_thread = current;
 	MALI_DEBUG_PRINT(4, ("OSPMM: MALI device is being suspended\n" ));
 	_mali_ukk_pmm_event_message(&event);
-#if MALI_STATE_TRACKING
 	is_os_pmm_thread_waiting = 1;
-#endif /* MALI_STATE_TRACKING */
 	err = mali_wait_for_power_management_policy_event();
-#if MALI_STATE_TRACKING
 	is_os_pmm_thread_waiting = 0;
-#endif /* MALI_STATE_TRACKING */
 	return err;
 }
 
@@ -334,17 +334,14 @@ static int mali_pm_suspend(struct device *dev)
 {
 	int err = 0;
 	_mali_osk_lock_wait(lock, _MALI_OSK_LOCKMODE_RW);
-	if ((mali_device_state == _MALI_DEVICE_SUSPEND) 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	    || mali_device_state ==  (_MALI_DEVICE_EARLYSUSPEND_DISABLE_FB))
-#else
-	)
-#endif /* CONFIG_HAS_EARLYSUSPEND */
+#if MALI_GPU_UTILIZATION
+	mali_utilization_suspend();
+#endif /* MALI_GPU_UTILIZATION */
+	if ((mali_device_state == _MALI_DEVICE_SUSPEND))
 	{
 		_mali_osk_lock_signal(lock, _MALI_OSK_LOCKMODE_RW);
 		return err;
 	}
-	mali_device_state = _MALI_DEVICE_SUSPEND_IN_PROGRESS;
 	err = mali_device_suspend(MALI_PMM_EVENT_OS_POWER_DOWN, &pm_thread);
 	mali_device_state = _MALI_DEVICE_SUSPEND;
 #ifdef CONFIG_REGULATOR
@@ -355,6 +352,7 @@ static int mali_pm_suspend(struct device *dev)
 }
 
 #ifndef CONFIG_PM_RUNTIME
+#if !MALI_PMM_RUNTIME_JOB_CONTROL_ON
 #ifndef CONFIG_HAS_EARLYSUSPEND
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(LINUX_KERNEL_MAJOR_VERSION,LINUX_KERNEL_MINOR_VERSION,LINUX_KERNEL_DEVELOPMENT_VERSION))
 static int mali_pm_os_suspend(struct platform_device *pdev, pm_message_t state)
@@ -368,6 +366,7 @@ static int mali_pm_os_suspend(struct device *dev)
 	return err;
 }
 #endif /*CONFIG_HAS_EARLYSUSPEND*/
+#endif /* MALI_PMM_RUNTIME_JOB_CONTROL_ON */
 #endif
 
 #ifdef CONFIG_PM_RUNTIME
@@ -409,13 +408,9 @@ int mali_device_resume(unsigned int event_id, struct task_struct **pwr_mgmt_thre
 	MALI_DEBUG_PRINT(4, ("OSPMM: MALI device is being resumed\n" ));
 	_mali_ukk_pmm_event_message(&event);
 	MALI_DEBUG_PRINT(4, ("OSPMM: MALI Power up  event is scheduled\n" ));
-#if MALI_STATE_TRACKING
 	is_os_pmm_thread_waiting = 1;
-#endif /* MALI_STATE_TRACKING */
 	err = mali_wait_for_power_management_policy_event();
-#if MALI_STATE_TRACKING
 	is_os_pmm_thread_waiting = 0;
-#endif /* MALI_STATE_TRACKING */
 	return err;
 }
 
@@ -451,6 +446,7 @@ static int mali_pm_resume(struct device *dev)
 }
 
 #ifndef CONFIG_PM_RUNTIME
+#if !MALI_PMM_RUNTIME_JOB_CONTROL_ON
 #ifndef CONFIG_HAS_EARLYSUSPEND
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(LINUX_KERNEL_MAJOR_VERSION,LINUX_KERNEL_MINOR_VERSION,LINUX_KERNEL_DEVELOPMENT_VERSION))
 static int mali_pm_os_resume(struct platform_device *pdev)
@@ -464,6 +460,7 @@ static int mali_pm_os_resume(struct device *dev)
 	return err;
 }
 #endif /*CONFIG_HAS_EARLYSUSPEND*/
+#endif /* MALI_PMM_RUNTIME_JOB_CONTROL_ON */
 #endif // CONFIG_PM_RUNTIME
 
 static int mali_pm_os_suspend_on_hibernation(struct device *dev)
@@ -619,9 +616,7 @@ static ssize_t store_file(struct device *dev, struct device_attribute *attr, con
 #if MALI_POWER_MGMT_TEST_SUITE
 	int test_flag_dvfs = 0;
         pwr_mgmt_status_reg = 0;
-#if MALI_PMM_INTERNAL_TESTING
         mali_is_pmu_present();
-#endif /* MALI_PMM_INTERNAL_TESTING */
 
 #endif
 	if (!strncmp(buf,mali_states[_MALI_DEVICE_SUSPEND],strlen(mali_states[_MALI_DEVICE_SUSPEND])))
@@ -701,14 +696,10 @@ static ssize_t store_file(struct device *dev, struct device_attribute *attr, con
 	}
 	else
 	{
-#if MALI_PMM_INTERNAL_TESTING
 		if (1 == is_mali_pmu_present)
 		{
-#endif /* MALI_PMM_INTERNAL_TESTING */
 			pwr_mgmt_status_reg = pmu_get_power_up_down_info();
-#if MALI_PMM_INTERNAL_TESTING
 		}
-#endif /* MALI_PMM_INTERNAL_TESTING */
 	}
 #endif /* MALI_POWER_MGMT_TEST_SUITE */
 	return count;
@@ -813,13 +804,18 @@ void _mali_dev_platform_unregister(void)
 	platform_device_unregister(&mali_gpu_device);
 }
 
+int mali_get_ospmm_thread_state(void)
+{
+	return is_os_pmm_thread_waiting;
+}
+
 #endif /* MALI_LICENSE_IS_GPL */
 #endif /* CONFIG_PM */
 
 #if MALI_STATE_TRACKING
-void mali_pmm_dump_os_thread_state( void )
+u32 mali_pmm_dump_os_thread_state( char *buf, u32 size )
 {
-	MALI_PRINTF(("\nOSPMM::The OS PMM thread state is...%d",is_os_pmm_thread_waiting));
+	return snprintf(buf, size, "OSPMM: OS PMM thread is waiting: %s\n", is_os_pmm_thread_waiting ? "true" : "false");
 }
 #endif /* MALI_STATE_TRACKING */
 #endif /* USING_MALI_PMM */

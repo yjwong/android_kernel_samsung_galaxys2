@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2011 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -188,6 +188,7 @@ _mali_osk_errcode_t pmm_policy_process_job_control( _mali_pmm_internal_state_t *
 			break;
 
 		case MALI_PMM_EVENT_JOB_SCHEDULED:
+
 			/* Update idle cores to indicate active - remove these! */
 			pmm_cores_set_active( pmm, cores );
 			/* Remember when this happened */
@@ -199,6 +200,7 @@ _mali_osk_errcode_t pmm_policy_process_job_control( _mali_pmm_internal_state_t *
 			/*** FALL THROUGH to QUEUED to check POWER UP ***/
 
 		case MALI_PMM_EVENT_JOB_QUEUED:
+		
 			pmm_policy_job_control_job_queued( pmm );
 #if MALI_POWER_MGMT_TEST_SUITE
 			_mali_osk_pmm_policy_events_notifications(MALI_PMM_EVENT_JOB_QUEUED);
@@ -206,6 +208,7 @@ _mali_osk_errcode_t pmm_policy_process_job_control( _mali_pmm_internal_state_t *
 			break;
 		
 		case MALI_PMM_EVENT_DVFS_PAUSE:
+
 			cores_subset = pmm_cores_to_power_down( pmm, cores, MALI_FALSE );
 			if ( cores_subset != 0 )
 			{
@@ -222,6 +225,7 @@ _mali_osk_errcode_t pmm_policy_process_job_control( _mali_pmm_internal_state_t *
 			break;
 
 		case MALI_PMM_EVENT_OS_POWER_DOWN:
+
 			/* Need to power down all cores even if we need to wait for them */
 			cores_subset = pmm_cores_to_power_down( pmm, cores, MALI_FALSE );
 			if( cores_subset != 0 )
@@ -245,6 +249,7 @@ _mali_osk_errcode_t pmm_policy_process_job_control( _mali_pmm_internal_state_t *
 			break;
 
 		case MALI_PMM_EVENT_JOB_FINISHED:
+
 			/* Update idle cores - add these! */
 			pmm_cores_set_idle( pmm, cores );
 #if MALI_POWER_MGMT_TEST_SUITE
@@ -261,6 +266,7 @@ _mali_osk_errcode_t pmm_policy_process_job_control( _mali_pmm_internal_state_t *
 			/*** FALL THROUGH to TIMEOUT TEST as NO TIMEOUT ***/
 
 		case MALI_PMM_EVENT_TIMEOUT:
+
 			/* Main job control policy - turn off cores after inactivity */
 			if( job_control_timeout_valid( pmm, &data_job_control->latency, (u32)event->data ) )
  			{
@@ -297,7 +303,7 @@ _mali_osk_errcode_t pmm_policy_process_job_control( _mali_pmm_internal_state_t *
 		switch ( event->id )
 		{
 		case MALI_PMM_EVENT_DVFS_RESUME:
-		
+
 			if ( pmm->cores_powered != 0 )
 			{
 				pmm->cores_ack_down =0;

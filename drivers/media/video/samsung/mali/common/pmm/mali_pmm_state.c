@@ -1,11 +1,16 @@
 /*
- * Copyright (C) 2010 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2011 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
  * 
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+/**
+ * @file mali_pmm_state.c
+ * Implementation of the power management module internal state
  */
 
 #if USING_MALI_PMM
@@ -136,7 +141,7 @@ mali_pmm_core_mask pmm_cores_to_power_down( _mali_pmm_internal_state_t *pmm, mal
 	MALI_PMM_DEBUG_ASSERT_CORES_SUBSET( pmm->cores_registered, cores );
 
 	/* Check that cores aren't pending power up when asked for power down */
-/*	MALI_DEBUG_ASSERT( pmm->cores_pend_up == 0 ); */
+	MALI_DEBUG_ASSERT( pmm->cores_pend_up == 0 );
 
 	cores_subset = (pmm->cores_powered & cores);
 	if( cores_subset != 0 )

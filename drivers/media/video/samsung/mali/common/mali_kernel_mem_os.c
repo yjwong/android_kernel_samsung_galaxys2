@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2011 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -71,7 +71,7 @@ mali_physical_memory_allocator * mali_os_allocator_create(u32 max_allocation, u3
 			    allocator->allocate = os_allocator_allocate;
 			    allocator->allocate_page_table_block = os_allocator_allocate_page_table_block;
 			    allocator->destroy = os_allocator_destroy;
-			    allocator->stat = os_allocator_stat;
+				allocator->stat = os_allocator_stat;
 			    allocator->ctx = info;
 				allocator->name = name;
 
@@ -101,21 +101,6 @@ static void os_allocator_destroy(mali_physical_memory_allocator * allocator)
 	_mali_osk_lock_term(info->mutex);
 	_mali_osk_free(info);
 	_mali_osk_free(allocator);
-}
-
-u32 mali_allocation_engine_memory_usage(mali_physical_memory_allocator *allocator)
-{
-	u32 sum = 0;
-	while(NULL != allocator)
-	{
-		/* only count allocators that have set up a stat function. */
-		if(allocator->stat)
-			sum += allocator->stat(allocator);
-
-		allocator = allocator->next;
-	}
-
-	return sum;
 }
 
 static mali_physical_memory_allocation_result os_allocator_allocate(void* ctx, mali_allocation_engine * engine,  mali_memory_allocation * descriptor, u32* offset, mali_physical_memory_allocation * alloc_info)
@@ -182,6 +167,9 @@ static mali_physical_memory_allocation_result os_allocator_allocate(void* ctx, m
 			*offset += _MALI_OSK_CPU_PAGE_SIZE;
 		}
 
+		if (left) MALI_PRINT(("Out of memory. Mali memory allocated: %d kB  Configured maximum OS memory usage: %d kB\n",
+				 (info->num_pages_allocated * _MALI_OSK_CPU_PAGE_SIZE)/1024, (info->num_pages_max* _MALI_OSK_CPU_PAGE_SIZE)/1024));
+
 		/* Loop termination; decide on result */
 		if (pages_allocated)
 		{
@@ -191,7 +179,7 @@ static mali_physical_memory_allocation_result os_allocator_allocate(void* ctx, m
 
             /* Some OS do not perform a full cache flush (including all outer caches) for uncached mapped memory.
              * They zero the memory through a cached mapping, then flush the inner caches but not the outer caches.
-             * This is required for MALI to have the correct view of the memory. 
+             * This is required for MALI to have the correct view of the memory.
              */
             _mali_osk_cache_ensure_uncached_range_flushed( (void *)descriptor, allocation->offset_start, pages_allocated *_MALI_OSK_CPU_PAGE_SIZE );
 			allocation->num_pages = pages_allocated;
@@ -255,8 +243,8 @@ static void os_allocator_release(void * ctx, void * handle)
 
 static mali_physical_memory_allocation_result os_allocator_allocate_page_table_block(void * ctx, mali_page_table_block * block)
 {
-	int allocation_order = 11; /* _MALI_OSK_CPU_PAGE_SIZE << 6 */
-	void *virt;
+	int allocation_order = 6; /* _MALI_OSK_CPU_PAGE_SIZE << 6 */
+	void *virt = NULL;
 	u32 size = _MALI_OSK_CPU_PAGE_SIZE << allocation_order;
 	os_allocator * info;
 

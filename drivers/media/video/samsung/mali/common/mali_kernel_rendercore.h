@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2011 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -189,10 +189,10 @@ typedef struct mali_core_session
 #endif
 	u32 magic_nr;
 #if MALI_STATE_TRACKING
-        _mali_osk_atomic_t jobs_received;
-        _mali_osk_atomic_t jobs_started;
-        _mali_osk_atomic_t jobs_ended;
-        _mali_osk_atomic_t jobs_returned;
+	_mali_osk_atomic_t jobs_received;
+	_mali_osk_atomic_t jobs_started;
+	_mali_osk_atomic_t jobs_ended;
+	_mali_osk_atomic_t jobs_returned;
 	u32 pid;
 #endif
 } mali_core_session;
@@ -233,14 +233,6 @@ void subsystem_flush_mapped_mem_cache(void);
 		if ( SUBSYSTEM_MAGIC_NR != subsystem->magic_nr) MALI_PRINT_ERROR(("Wrong magic number"));\
 	} while (0)
 
-#define MALI_CHECK_SUBSYSTEM_RETURN(subsystem)\
-	do { \
-		if (SUBSYSTEM_MAGIC_NR != subsystem->magic_nr) {\
-			MALI_PRINT_ERROR(("Wrong magic number"));\
-			return _MALI_OSK_ERR_INVALID_ARGS;\
-		} \
-	} while (0)
-
 #define MALI_CHECK_CORE(CORE)\
 	do { \
 		if ( CORE_MAGIC_NR != CORE->magic_nr) MALI_PRINT_ERROR(("Wrong magic number"));\
@@ -250,14 +242,6 @@ void subsystem_flush_mapped_mem_cache(void);
 	do { \
 		if ( SESSION_MAGIC_NR != SESSION->magic_nr) MALI_PRINT_ERROR(("Wrong magic number"));\
 } while (0)
-
-#define MALI_CHECK_SESSION_RETURN(SESSION)\
-	do { \
-		if (SESSION_MAGIC_NR != SESSION->magic_nr) {\
-			MALI_PRINT_ERROR(("Wrong magic number"));\
-			return _MALI_OSK_ERR_INVALID_ARGS;\
-		} \
-	} while (0)
 
 #define MALI_CHECK_JOB(JOB)\
 	do { \
@@ -333,11 +317,117 @@ typedef struct register_array_user
 		if ( rendercores_global_mutex_owner != _mali_osk_get_tid() ) MALI_PRINT_ERROR(("Owner mismatch"));\
 	} while (0)
 
+MALI_STATIC_INLINE _mali_osk_errcode_t mali_core_renderunit_register_rw_check(mali_core_renderunit *core,
+                                                                                 u32 relative_address)
+{
+#if USING_MALI_PMM
+	if( core->state == CORE_OFF )
+	{
+		MALI_PRINT_ERROR(("Core is OFF during access: Core: %s Addr: 0x%04X\n",
+			core->description,relative_address));
+		MALI_ERROR(_MALI_OSK_ERR_FAULT);
+	}
+#endif
 
-u32   mali_core_renderunit_register_read(struct mali_core_renderunit *core, u32 relative_address);
-void  mali_core_renderunit_register_read_array(struct mali_core_renderunit *core, u32 relative_address,  u32 * result_array, u32 nr_of_regs);
-void  mali_core_renderunit_register_write(struct mali_core_renderunit *core, u32 relative_address, u32 new_val);
-void  mali_core_renderunit_register_write_array(struct mali_core_renderunit *core, u32 relative_address,  u32 * write_array, u32 nr_of_regs);
+	MALI_DEBUG_ASSERT((relative_address & 0x03) == 0);
+
+	if (mali_benchmark) MALI_ERROR(_MALI_OSK_ERR_FAULT);
+
+	MALI_DEBUG_CODE(if (relative_address >= core->size)
+	{
+		MALI_PRINT_ERROR(("Trying to access illegal register: 0x%04x in core: %s",
+			relative_address, core->description));
+		MALI_ERROR(_MALI_OSK_ERR_FAULT);
+	})
+
+	MALI_SUCCESS;
+}
+
+
+MALI_STATIC_INLINE u32 mali_core_renderunit_register_read(struct mali_core_renderunit *core, u32 relative_address)
+{
+	u32 read_val;
+
+	if(_MALI_OSK_ERR_FAULT == mali_core_renderunit_register_rw_check(core, relative_address))
+		return 0xDEADBEEF;
+
+	read_val = _mali_osk_mem_ioread32(core->registers_mapped, relative_address);
+
+	MALI_DEBUG_PRINT(6, ("Core: renderunit_register_read: Core:%s Addr:0x%04X Val:0x%08x\n",
+	        core->description,relative_address, read_val));
+
+	return read_val;
+}
+
+MALI_STATIC_INLINE void mali_core_renderunit_register_read_array(struct mali_core_renderunit *core,
+                                                                 u32 relative_address,
+                                                                 u32 * result_array,
+                                                                 u32 nr_of_regs)
+{
+	/* NOTE Do not use burst reads against the registers */
+	u32 i;
+
+	MALI_DEBUG_PRINT(6, ("Core: renderunit_register_read_array: Core:%s Addr:0x%04X Nr_regs: %u\n",
+	        core->description,relative_address, nr_of_regs));
+
+	for(i=0; i<nr_of_regs; ++i)
+	{
+		result_array[i] = mali_core_renderunit_register_read(core, relative_address + i*4);
+	}
+}
+
+/*
+ * Write to a core register, and bypass implied memory barriers.
+ *
+ * On some systems, _mali_osk_mem_iowrite32() implies a memory barrier. This
+ * can be a performance problem when doing many writes in sequence.
+ *
+ * When using this function, ensure proper barriers are put in palce. Most
+ * likely a _mali_osk_mem_barrier() is needed after all related writes are
+ * completed.
+ *
+ */
+MALI_STATIC_INLINE void mali_core_renderunit_register_write_relaxed(mali_core_renderunit *core,
+                                                                u32 relative_address,
+                                                                u32 new_val)
+{
+	if(_MALI_OSK_ERR_FAULT == mali_core_renderunit_register_rw_check(core, relative_address))
+		return;
+
+	MALI_DEBUG_PRINT(6, ("mali_core_renderunit_register_write_relaxed: Core:%s Addr:0x%04X Val:0x%08x\n",
+		core->description,relative_address, new_val));
+
+	_mali_osk_mem_iowrite32_relaxed(core->registers_mapped, relative_address, new_val);
+}
+
+MALI_STATIC_INLINE void mali_core_renderunit_register_write(struct mali_core_renderunit *core,
+                                                            u32 relative_address,
+                                                            u32 new_val)
+{
+	MALI_DEBUG_PRINT(6, ("mali_core_renderunit_register_write: Core:%s Addr:0x%04X Val:0x%08x\n",
+            core->description,relative_address, new_val));
+
+	if(_MALI_OSK_ERR_FAULT == mali_core_renderunit_register_rw_check(core, relative_address))
+		return;
+
+	_mali_osk_mem_iowrite32(core->registers_mapped, relative_address, new_val);
+}
+
+MALI_STATIC_INLINE void mali_core_renderunit_register_write_array(struct mali_core_renderunit *core,
+                                                                  u32 relative_address,
+                                                                  u32 * write_array,
+                                                                  u32 nr_of_regs)
+{
+	u32 i;
+	MALI_DEBUG_PRINT(6, ("Core: renderunit_register_write_array: Core:%s Addr:0x%04X Nr_regs: %u\n",
+	        core->description,relative_address, nr_of_regs));
+
+	/* Do not use burst writes against the registers */
+	for( i = 0; i< nr_of_regs; i++)
+	{
+		mali_core_renderunit_register_write_relaxed(core, relative_address + i*4, write_array[i]);
+	}
+}
 
 _mali_osk_errcode_t  mali_core_renderunit_init(struct mali_core_renderunit * core);
 void  mali_core_renderunit_term(struct mali_core_renderunit * core);
@@ -373,7 +463,7 @@ _mali_osk_errcode_t mali_core_subsystem_signal_power_up(mali_core_subsystem *sub
 #endif
 
 #if MALI_STATE_TRACKING
-void mali_core_renderunit_dump_state(mali_core_subsystem* subsystem);
+u32 mali_core_renderunit_dump_state(mali_core_subsystem* subsystem, char *buf, u32 size);
 #endif
 
 #endif /* __MALI_RENDERCORE_H__ */

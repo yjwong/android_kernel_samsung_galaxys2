@@ -1,9 +1,9 @@
 /*
- * Copyright (C) 2010 ARM Limited. All rights reserved.
- *
+ * Copyright (C) 2010-2011 ARM Limited. All rights reserved.
+ * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- *
+ * 
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -21,7 +21,6 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
-#include <asm/cacheflush.h>
 
 #include "mali_osk.h"
 #include "mali_ukk.h" /* required to hook in _mali_ukk_mem_mmap handling */
@@ -77,7 +76,7 @@ static void _allocation_list_item_release(AllocationList * item);
 
 
 /* Variable declarations */
-spinlock_t allocation_list_spinlock;
+spinlock_t allocation_list_spinlock = SPIN_LOCK_UNLOCKED;
 static AllocationList * pre_allocated_memory = (AllocationList*) NULL ;
 static int pre_allocated_memory_size_current  = 0;
 #ifdef MALI_OS_MEMORY_KERNEL_BUFFER_SIZE_IN_MB
@@ -100,7 +99,6 @@ static struct vm_operations_struct mali_kernel_vm_ops =
 
 void mali_osk_low_level_mem_init(void)
 {
-	spin_lock_init( &allocation_list_spinlock );
 	pre_allocated_memory = (AllocationList*) NULL ;
 }
 
@@ -121,9 +119,9 @@ static u32 _kernel_page_allocate(void)
 {
 	struct page *new_page;
 	u32 linux_phys_addr;
-
+	
 	new_page = alloc_page(GFP_HIGHUSER | __GFP_ZERO | __GFP_REPEAT | __GFP_NOWARN | __GFP_COLD);
-
+	
 	if ( NULL == new_page )
 	{
 		return 0;
@@ -142,7 +140,7 @@ static void _kernel_page_release(u32 physical_address)
 	#if 1
 	dma_unmap_page(NULL, physical_address, PAGE_SIZE, DMA_BIDIRECTIONAL);
 	#endif
-
+	
 	unmap_page = pfn_to_page( physical_address >> PAGE_SHIFT );
 	MALI_DEBUG_ASSERT_POINTER( unmap_page );
 	__free_page( unmap_page );
@@ -152,19 +150,19 @@ static AllocationList * _allocation_list_item_get(void)
 {
 	AllocationList *item = NULL;
 	unsigned long flags;
-
+	
 	spin_lock_irqsave(&allocation_list_spinlock,flags);
 	if ( pre_allocated_memory )
 	{
 		item = pre_allocated_memory;
 		pre_allocated_memory = pre_allocated_memory->next;
 		pre_allocated_memory_size_current -= PAGE_SIZE;
-
+		
 		spin_unlock_irqrestore(&allocation_list_spinlock,flags);
 		return item;
 	}
 	spin_unlock_irqrestore(&allocation_list_spinlock,flags);
-
+	
 	item = _mali_osk_malloc( sizeof(AllocationList) );
 	if ( NULL == item)
 	{
@@ -194,7 +192,7 @@ static void _allocation_list_item_release(AllocationList * item)
 		return;
 	}
 	spin_unlock_irqrestore(&allocation_list_spinlock,flags);
-
+	
 	_kernel_page_release(item->physaddr);
 	_mali_osk_free( item );
 }
@@ -228,7 +226,7 @@ static unsigned long mali_kernel_memory_cpu_page_fault_handler(struct vm_area_st
 static void mali_kernel_memory_vma_open(struct vm_area_struct * vma)
 {
 	mali_vma_usage_tracker * vma_usage_tracker;
-	MALI_DEBUG_PRINT(2, ("Open called on vma %p\n", vma));
+	MALI_DEBUG_PRINT(4, ("Open called on vma %p\n", vma));
 
 	vma_usage_tracker = (mali_vma_usage_tracker*)vma->vm_private_data;
 	vma_usage_tracker->references++;
@@ -277,6 +275,11 @@ void _mali_osk_mem_barrier( void )
 	mb();
 }
 
+void _mali_osk_write_mem_barrier( void )
+{
+	wmb();
+}
+
 mali_io_address _mali_osk_mem_mapioregion( u32 phys, u32 size, const char *description )
 {
 	return (mali_io_address)ioremap_nocache(phys, size);
@@ -290,9 +293,9 @@ void _mali_osk_mem_unmapioregion( u32 phys, u32 size, mali_io_address virt )
 mali_io_address _mali_osk_mem_allocioregion( u32 *phys, u32 size )
 {
 	void * virt;
-	MALI_DEBUG_ASSERT_POINTER( phys );
-	MALI_DEBUG_ASSERT( 0 == (size & ~_MALI_OSK_CPU_PAGE_MASK) );
-	MALI_DEBUG_ASSERT( 0 != size );
+ 	MALI_DEBUG_ASSERT_POINTER( phys );
+ 	MALI_DEBUG_ASSERT( 0 == (size & ~_MALI_OSK_CPU_PAGE_MASK) );
+ 	MALI_DEBUG_ASSERT( 0 != size );
 
 	/* dma_alloc_* uses a limited region of address space. On most arch/marchs
 	 * 2 to 14 MiB is available. This should be enough for the page tables, which
@@ -301,22 +304,22 @@ mali_io_address _mali_osk_mem_allocioregion( u32 *phys, u32 size )
 
 	MALI_DEBUG_PRINT(3, ("Page table virt: 0x%x = dma_alloc_coherent(size:%d, phys:0x%x, )\n", virt, size, phys));
 
-	if ( NULL == virt )
-	{
+ 	if ( NULL == virt )
+ 	{
 		MALI_DEBUG_PRINT(5, ("allocioregion: Failed to allocate Pagetable memory, size=0x%.8X\n", size ));
-		return 0;
-	}
+ 		return 0;
+ 	}
 
 	MALI_DEBUG_ASSERT( 0 == (*phys & ~_MALI_OSK_CPU_PAGE_MASK) );
 
-	return (mali_io_address)virt;
+ 	return (mali_io_address)virt;
 }
 
 void _mali_osk_mem_freeioregion( u32 phys, u32 size, mali_io_address virt )
 {
-	MALI_DEBUG_ASSERT_POINTER( (void*)virt );
-	MALI_DEBUG_ASSERT( 0 != size );
-	MALI_DEBUG_ASSERT( 0 == (phys & ( (1 << PAGE_SHIFT) - 1 )) );
+ 	MALI_DEBUG_ASSERT_POINTER( (void*)virt );
+ 	MALI_DEBUG_ASSERT( 0 != size );
+ 	MALI_DEBUG_ASSERT( 0 == (phys & ( (1 << PAGE_SHIFT) - 1 )) );
 
 	dma_free_coherent(NULL, size, virt, phys);
 }
@@ -331,6 +334,11 @@ void inline _mali_osk_mem_unreqregion( u32 phys, u32 size )
 	release_mem_region(phys, size);
 }
 
+void inline _mali_osk_mem_iowrite32_relaxed( volatile mali_io_address addr, u32 offset, u32 val )
+{
+	__raw_writel(cpu_to_le32(val),((u8*)addr) + offset);
+}
+
 u32 inline _mali_osk_mem_ioread32( volatile mali_io_address addr, u32 offset )
 {
 	return ioread32(((u8*)addr) + offset);
@@ -338,7 +346,7 @@ u32 inline _mali_osk_mem_ioread32( volatile mali_io_address addr, u32 offset )
 
 void inline _mali_osk_mem_iowrite32( volatile mali_io_address addr, u32 offset, u32 val )
 {
-    writel_relaxed(val, ((u8*)addr) + offset);
+	iowrite32(val, ((u8*)addr) + offset);
 }
 
 void _mali_osk_cache_flushall( void )
@@ -348,7 +356,7 @@ void _mali_osk_cache_flushall( void )
 
 void _mali_osk_cache_ensure_uncached_range_flushed( void *uncached_mapping, u32 offset, u32 size )
 {
-	wmb();
+	_mali_osk_write_mem_barrier();
 }
 
 _mali_osk_errcode_t _mali_osk_mem_mapregion_init( mali_memory_allocation * descriptor )
@@ -480,6 +488,11 @@ _mali_osk_errcode_t _mali_osk_mem_mapregion_map( mali_memory_allocation * descri
 		u32 linux_phys_frame_num;
 
 		alloc_item = _allocation_list_item_get();
+		if (NULL == alloc_item)
+		{
+			MALI_DEBUG_PRINT(1, ("Failed to allocate list item\n"));
+			return _MALI_OSK_ERR_NOMEM;
+		}
 
 		linux_phys_frame_num = alloc_item->physaddr >> PAGE_SHIFT;
 
