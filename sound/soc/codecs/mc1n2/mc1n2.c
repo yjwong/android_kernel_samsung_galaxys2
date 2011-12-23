@@ -519,7 +519,8 @@ static int mc1n2_set_fmt_common(struct mc1n2_port_params *port, unsigned int fmt
 static int mc1n2_i2s_set_clkdiv(struct snd_soc_dai *dai, int div_id, int div)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct mc1n2_data *mc1n2 = codec->drvdata;
+	struct mc1n2_data *mc1n2 = snd_soc_codec_get_drvdata(codec);
+	//struct mc1n2_data *mc1n2 = codec->drvdata;
 	struct mc1n2_port_params *port = &mc1n2->port[dai->id];
 
 	switch (div_id) {
@@ -548,7 +549,8 @@ static int mc1n2_i2s_set_clkdiv(struct snd_soc_dai *dai, int div_id, int div)
 static int mc1n2_i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct mc1n2_data *mc1n2 = codec->drvdata;
+	struct mc1n2_data *mc1n2 = snd_soc_codec_get_drvdata(codec);
+	//struct mc1n2_data *mc1n2 = codec->drvdata;
 	struct mc1n2_port_params *port = &mc1n2->port[dai->id];
 
 	/* format */
@@ -574,12 +576,14 @@ static int mc1n2_i2s_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *runtime = snd_pcm_substream_chip(substream);
-#ifdef ALSA_VER_1_0_19
-	struct snd_soc_codec *codec = runtime->socdev->codec;
-#else
-	struct snd_soc_codec *codec = runtime->socdev->card->codec;
-#endif
-	struct mc1n2_data *mc1n2 = codec->drvdata;
+	struct snd_soc_codec *codec = runtime->codec;
+//#ifdef ALSA_VER_1_0_19
+//	struct snd_soc_codec *codec = runtime->socdev->codec;
+//#else
+//	struct snd_soc_codec *codec = runtime->socdev->card->codec;
+//#endif
+	struct mc1n2_data *mc1n2 = snd_soc_codec_get_drvdata(codec);
+	//struct mc1n2_data *mc1n2 = codec->drvdata;
 	struct mc1n2_port_params *port = &mc1n2->port[dai->id];
 	int dir = substream->stream;
 	int rate;
@@ -688,12 +692,14 @@ static int mc1n2_hw_free(struct snd_pcm_substream *substream,
 			 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *runtime = snd_pcm_substream_chip(substream);
-#ifdef ALSA_VER_1_0_19
-	struct snd_soc_codec *codec = runtime->socdev->codec;
-#else
-	struct snd_soc_codec *codec = runtime->socdev->card->codec;
-#endif
-	struct mc1n2_data *mc1n2 = codec->drvdata;
+	struct snd_soc_codec *codec = runtime->codec;
+//#ifdef ALSA_VER_1_0_19
+//	struct snd_soc_codec *codec = runtime->socdev->codec;
+//#else
+//	struct snd_soc_codec *codec = runtime->socdev->card->codec;
+//#endif
+	struct mc1n2_data *mc1n2 = snd_soc_codec_get_drvdata(codec);
+	//struct mc1n2_data *mc1n2 = codec->drvdata;
 	struct mc1n2_port_params *port = &mc1n2->port[dai->id];
 	int dir = substream->stream;
 	int err;
@@ -735,7 +741,8 @@ error:
 static int mc1n2_pcm_set_clkdiv(struct snd_soc_dai *dai, int div_id, int div)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct mc1n2_data *mc1n2 = codec->drvdata;
+	struct mc1n2_data *mc1n2 = snd_soc_codec_get_drvdata(codec);
+	//struct mc1n2_data *mc1n2 = codec->drvdata;
 	struct mc1n2_port_params *port = &mc1n2->port[dai->id];
 
 	switch (div_id) {
@@ -789,7 +796,8 @@ static int mc1n2_pcm_set_clkdiv(struct snd_soc_dai *dai, int div_id, int div)
 static int mc1n2_pcm_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct mc1n2_data *mc1n2 = codec->drvdata;
+	struct mc1n2_data *mc1n2 = snd_soc_codec_get_drvdata(codec);
+	//struct mc1n2_data *mc1n2 = codec->drvdata;
 	struct mc1n2_port_params *port = &mc1n2->port[dai->id];
 
 	/* format */
@@ -812,12 +820,14 @@ static int mc1n2_pcm_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *runtime = snd_pcm_substream_chip(substream);
-#ifdef ALSA_VER_1_0_19
-	struct snd_soc_codec *codec = runtime->socdev->codec;
-#else
-	struct snd_soc_codec *codec = runtime->socdev->card->codec;
-#endif
-	struct mc1n2_data *mc1n2 = codec->drvdata;
+	struct snd_soc_codec *codec = runtime->codec;
+//#ifdef ALSA_VER_1_0_19
+//	struct snd_soc_codec *codec = runtime->socdev->codec;
+//#else
+//	struct snd_soc_codec *codec = runtime->socdev->card->codec;
+//#endif
+	struct mc1n2_data *mc1n2 = snd_soc_codec_get_drvdata(codec);
+	//struct mc1n2_data *mc1n2 = codec->drvdata;
 	struct mc1n2_port_params *port = &mc1n2->port[dai->id];
 	int dir = substream->stream;
 	int rate;
@@ -966,174 +976,158 @@ static struct snd_soc_dai_ops mc1n2_dai_ops[] = {
 };
 #endif
 
+struct snd_soc_dai_ops mc1n2_dai_ops_i2s = {
+	.set_clkdiv = mc1n2_i2s_set_clkdiv,
+	.set_fmt = mc1n2_i2s_set_fmt,
+	.hw_params = mc1n2_i2s_hw_params,
+	.hw_free = mc1n2_hw_free,
+};
+
+struct snd_soc_dai_ops mc1n2_dai_ops_pcm = {
+	.set_clkdiv = mc1n2_pcm_set_clkdiv,
+	.set_fmt = mc1n2_pcm_set_fmt,
+	.hw_params = mc1n2_pcm_hw_params,
+	.hw_free = mc1n2_hw_free,
+};
+
+struct snd_soc_dai_driver mc1n2_dai_driver_da0_i2s = {
+	.playback = {
+		.stream_name = "Playback",
+		.channels_min = 1,
+		.channels_max = 2,
+		.rates = MC1N2_I2S_RATE,
+		.formats = MC1N2_I2S_FORMATS,
+	},
+	.capture = {
+		.stream_name = "Capture",
+		.channels_min = 1,
+		.channels_max = 2,
+		.rates = MC1N2_I2S_RATE,
+		.formats = MC1N2_I2S_FORMATS,
+	},
+	.ops = &mc1n2_dai_ops_i2s,
+};
+
+struct snd_soc_dai_driver mc1n2_dai_driver_da0_pcm = {
+	.playback = {
+		.stream_name = "Playback",
+		.channels_min = 1,
+		.channels_max = 2,
+		.rates = MC1N2_PCM_RATE,
+		.formats = MC1N2_PCM_FORMATS,
+	},
+	.capture = {
+		.stream_name = "Capture",
+		.channels_min = 1,
+		.channels_max = 2,
+		.rates = MC1N2_PCM_RATE,
+		.formats = MC1N2_PCM_FORMATS,
+	},
+	.ops = &mc1n2_dai_ops_pcm,
+};
+
+struct snd_soc_dai_driver mc1n2_dai_driver_da1_i2s = {
+	.playback = {
+		.stream_name = "Playback",
+		.channels_min = 1,
+		.channels_max = 2,
+		.rates = MC1N2_I2S_RATE,
+		.formats = MC1N2_I2S_FORMATS,
+	},
+	.capture = {
+		.stream_name = "Capture",
+		.channels_min = 1,
+		.channels_max = 2,
+		.rates = MC1N2_I2S_RATE,
+		.formats = MC1N2_I2S_FORMATS,
+	},
+	.ops = &mc1n2_dai_ops_i2s,
+};
+
+struct snd_soc_dai_driver mc1n2_dai_driver_da1_pcm = {
+	.playback = {
+		.stream_name = "Playback",
+		.channels_min = 1,
+		.channels_max = 2,
+		.rates = MC1N2_PCM_RATE,
+		.formats = MC1N2_PCM_FORMATS,
+	},
+	.capture = {
+		.stream_name = "Capture",
+		.channels_min = 1,
+		.channels_max = 2,
+		.rates = MC1N2_PCM_RATE,
+		.formats = MC1N2_PCM_FORMATS,
+	},
+	.ops = &mc1n2_dai_ops_pcm,
+};
+
+struct snd_soc_dai_driver mc1n2_dai_driver_da2_i2s = {
+	.playback = {
+		.stream_name = "Playback",
+		.channels_min = 1,
+		.channels_max = 2,
+		.rates = MC1N2_I2S_RATE,
+		.formats = MC1N2_I2S_FORMATS,
+	},
+	.capture = {
+		.stream_name = "Capture",
+		.channels_min = 1,
+		.channels_max = 2,
+		.rates = MC1N2_I2S_RATE,
+		.formats = MC1N2_I2S_FORMATS,
+	},
+	.ops = &mc1n2_dai_ops_i2s,
+};
+
+struct snd_soc_dai_driver mc1n2_dai_driver_da2_pcm = {
+	.playback = {
+		.stream_name = "Playback",
+		.channels_min = 1,
+		.channels_max = 2,
+		.rates = MC1N2_PCM_RATE,
+		.formats = MC1N2_PCM_FORMATS,
+	},
+	.capture = {
+		.stream_name = "Capture",
+		.channels_min = 1,
+		.channels_max = 2,
+		.rates = MC1N2_PCM_RATE,
+		.formats = MC1N2_PCM_FORMATS,
+	},
+	.ops = &mc1n2_dai_ops_pcm,
+};
+
 struct snd_soc_dai mc1n2_dai[] = {
 	{
 		.name = MC1N2_NAME "-da0",
 		.id = 0,
-		.playback = {
-			.stream_name = "Playback",
-			.channels_min = 1,
-			.channels_max = 2,
-			.rates = MC1N2_I2S_RATE,
-			.formats = MC1N2_I2S_FORMATS,
-		},
-		.capture = {
-			.stream_name = "Capture",
-			.channels_min = 1,
-			.channels_max = 2,
-			.rates = MC1N2_I2S_RATE,
-			.formats = MC1N2_I2S_FORMATS,
-		},
-#ifdef ALSA_VER_1_0_19
-		.ops = {
-			.set_clkdiv = mc1n2_i2s_set_clkdiv,
-			.set_fmt = mc1n2_i2s_set_fmt,
-			.hw_params = mc1n2_i2s_hw_params,
-			.hw_free = mc1n2_hw_free,
-		}
-#else
-		.ops = &mc1n2_dai_ops[0]
-#endif
+		.driver = &mc1n2_dai_driver_da0_i2s,
 	},
 	{
 		.name = MC1N2_NAME "-da0",
 		.id = 0,
-		.playback = {
-			.stream_name = "Playback",
-			.channels_min = 1,
-			.channels_max = 2,
-			.rates = MC1N2_PCM_RATE,
-			.formats = MC1N2_PCM_FORMATS,
-		},
-		.capture = {
-			.stream_name = "Capture",
-			.channels_min = 1,
-			.channels_max = 2,
-			.rates = MC1N2_PCM_RATE,
-			.formats = MC1N2_PCM_FORMATS,
-		},
-#ifdef ALSA_VER_1_0_19
-		.ops = {
-			.set_clkdiv = mc1n2_pcm_set_clkdiv,
-			.set_fmt = mc1n2_pcm_set_fmt,
-			.hw_params = mc1n2_pcm_hw_params,
-			.hw_free = mc1n2_hw_free,
-		}
-#else
-		.ops = &mc1n2_dai_ops[1]
-#endif
+		.driver = &mc1n2_dai_driver_da0_pcm,
 	},
 	{
 		.name = MC1N2_NAME "-da1",
 		.id = 1,
-		.playback = {
-			.stream_name = "Playback",
-			.channels_min = 1,
-			.channels_max = 2,
-			.rates = MC1N2_I2S_RATE,
-			.formats = MC1N2_I2S_FORMATS,
-		},
-		.capture = {
-			.stream_name = "Capture",
-			.channels_min = 1,
-			.channels_max = 2,
-			.rates = MC1N2_I2S_RATE,
-			.formats = MC1N2_I2S_FORMATS,
-		},
-#ifdef ALSA_VER_1_0_19
-		.ops = {
-			.set_clkdiv = mc1n2_i2s_set_clkdiv,
-			.set_fmt = mc1n2_i2s_set_fmt,
-			.hw_params = mc1n2_i2s_hw_params,
-			.hw_free = mc1n2_hw_free,
-		}
-#else
-		.ops = &mc1n2_dai_ops[2]
-#endif
+		.driver = &mc1n2_dai_driver_da1_i2s,
 	},
 	{
 		.name = MC1N2_NAME "-da1",
 		.id = 1,
-		.playback = {
-			.stream_name = "Playback",
-			.channels_min = 1,
-			.channels_max = 2,
-			.rates = MC1N2_PCM_RATE,
-			.formats = MC1N2_PCM_FORMATS,
-		},
-		.capture = {
-			.stream_name = "Capture",
-			.channels_min = 1,
-			.channels_max = 2,
-			.rates = MC1N2_PCM_RATE,
-			.formats = MC1N2_PCM_FORMATS,
-		},
-#ifdef ALSA_VER_1_0_19
-		.ops = {
-			.set_clkdiv = mc1n2_pcm_set_clkdiv,
-			.set_fmt = mc1n2_pcm_set_fmt,
-			.hw_params = mc1n2_pcm_hw_params,
-			.hw_free = mc1n2_hw_free,
-		}
-#else
-		.ops = &mc1n2_dai_ops[3]
-#endif
+		.driver = &mc1n2_dai_driver_da1_pcm,
 	},
 	{
 		.name = MC1N2_NAME "-da2",
 		.id = 2,
-		.playback = {
-			.stream_name = "Playback",
-			.channels_min = 1,
-			.channels_max = 2,
-			.rates = MC1N2_I2S_RATE,
-			.formats = MC1N2_I2S_FORMATS,
-		},
-		.capture = {
-			.stream_name = "Capture",
-			.channels_min = 1,
-			.channels_max = 2,
-			.rates = MC1N2_I2S_RATE,
-			.formats = MC1N2_I2S_FORMATS,
-		},
-#ifdef ALSA_VER_1_0_19
-		.ops = {
-			.set_clkdiv = mc1n2_i2s_set_clkdiv,
-			.set_fmt = mc1n2_i2s_set_fmt,
-			.hw_params = mc1n2_i2s_hw_params,
-			.hw_free = mc1n2_hw_free,
-		}
-#else
-		.ops = &mc1n2_dai_ops[4]
-#endif
+		.driver = &mc1n2_dai_driver_da2_i2s,
 	},
 	{
 		.name = MC1N2_NAME "-da2",
 		.id = 2,
-		.playback = {
-			.stream_name = "Playback",
-			.channels_min = 1,
-			.channels_max = 2,
-			.rates = MC1N2_PCM_RATE,
-			.formats = MC1N2_PCM_FORMATS,
-		},
-		.capture = {
-			.stream_name = "Capture",
-			.channels_min = 1,
-			.channels_max = 2,
-			.rates = MC1N2_PCM_RATE,
-			.formats = MC1N2_PCM_FORMATS,
-		},
-#ifdef ALSA_VER_1_0_19
-		.ops = {
-			.set_clkdiv = mc1n2_pcm_set_clkdiv,
-			.set_fmt = mc1n2_pcm_set_fmt,
-			.hw_params = mc1n2_pcm_hw_params,
-			.hw_free = mc1n2_hw_free,
-		}
-#else
-		.ops = &mc1n2_dai_ops[5]
-#endif
+		.driver = &mc1n2_dai_driver_da2_pcm,
 	},
 };
 EXPORT_SYMBOL_GPL(mc1n2_dai);
@@ -2400,7 +2394,8 @@ static int mc1n2_set_codec_status(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct mc1n2_data *mc1n2 = codec->drvdata;
+	struct mc1n2_data *mc1n2 = snd_soc_codec_get_drvdata(codec);
+	//struct mc1n2_data *mc1n2 = codec->drvdata;
 	SINT16 *vol = (SINT16 *)&mc1n2->vol_store;
 
 	int control_data = ucontrol->value.integer.value[0];
@@ -3201,7 +3196,8 @@ static int mc1n2_hwdep_map_error(int err)
 static int mc1n2_hwdep_ioctl_set_path(struct snd_soc_codec *codec,
 				      void *info, unsigned int update)
 {
-	struct mc1n2_data *mc1n2 = codec->drvdata;
+	struct mc1n2_data *mc1n2 = snd_soc_codec_get_drvdata(codec);
+	//struct mc1n2_data *mc1n2 = codec->drvdata;
 	MCDRV_CHANNEL *ch;
 	int i, j;
 	MCDRV_PATH_INFO *path = (MCDRV_PATH_INFO *) info;
@@ -3342,7 +3338,8 @@ static int mc1n2_hwdep_ioctl_set_path(struct snd_soc_codec *codec,
 static int mc1n2_hwdep_ioctl_set_ae(struct snd_soc_codec *codec,
 				    void *info, unsigned int update)
 {
-	struct mc1n2_data *mc1n2 = codec->drvdata;
+	struct mc1n2_data *mc1n2 = snd_soc_codec_get_drvdata(codec);
+	//struct mc1n2_data *mc1n2 = codec->drvdata;
 	UINT8 onoff = ((MCDRV_AE_INFO *)info)->bOnOff;
 	unsigned int mask = update & 0x0f;      /* bit mask for bOnOff */
 	int i;
@@ -3558,7 +3555,8 @@ static int mc1n2_hwdep_ioctl_notify(struct snd_soc_codec *codec,
 				      struct mc1n2_ctrl_args *args)
 {
 	MCDRV_PATH_INFO path;
-	struct mc1n2_data *mc1n2 = codec->drvdata;
+	struct mc1n2_data *mc1n2 = snd_soc_codec_get_drvdata(codec);
+	//struct mc1n2_data *mc1n2 = codec->drvdata;
 
 	mutex_lock(&mc1n2->mutex);
 
@@ -3690,7 +3688,8 @@ static int mc1n2_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 static int mc1n2_add_hwdep(struct snd_soc_codec *codec)
 {
 	struct snd_hwdep *hw;
-	struct mc1n2_data *mc1n2 = codec->drvdata;
+	struct mc1n2_data *mc1n2 = snd_soc_codec_get_drvdata(codec);
+	//struct mc1n2_data *mc1n2 = codec->drvdata;
 	int err;
 
 	err = snd_hwdep_new(codec->card, MC1N2_HWDEP_ID, 0, &hw);
@@ -3717,7 +3716,8 @@ static int mc1n2_probe(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = mc1n2_get_codec_data();
-	struct mc1n2_data *mc1n2 = codec->drvdata;
+	struct mc1n2_data *mc1n2 = snd_soc_codec_get_drvdata(codec);
+	//struct mc1n2_data *mc1n2 = codec->drvdata;
 	struct mc1n2_setup *setup = socdev->codec_data;
 	int err;
 	UINT32 update = 0;
@@ -3903,7 +3903,8 @@ static int mc1n2_suspend(struct platform_device *pdev, pm_message_t state)
 #else
 	struct snd_soc_codec *codec = socdev->card->codec;
 #endif
-	struct mc1n2_data *mc1n2 = codec->drvdata;
+	struct mc1n2_data *mc1n2 = snd_soc_codec_get_drvdata(codec);
+	//struct mc1n2_data *mc1n2 = codec->drvdata;
 	int err, i;
 
 	TRACE_FUNC();
@@ -3962,7 +3963,8 @@ static int mc1n2_resume(struct platform_device *pdev)
 #else
 	struct snd_soc_codec *codec = socdev->card->codec;
 #endif
-	struct mc1n2_data *mc1n2 = codec->drvdata;
+	struct mc1n2_data *mc1nd = snd_soc_codec_get_drvdata(codec);f
+	//struct mc1n2_data *mc1n2 = codec->drvdata;
 	SINT16 *vol = (SINT16 *)&mc1n2->vol_store;
 	int err, i;
 
@@ -4063,7 +4065,8 @@ static int mc1n2_i2c_probe(struct i2c_client *client,
 
 	mc1n2->hdmicount = 0;
 
-	codec->drvdata = mc1n2;
+	snd_soc_codec_set_drvdata(codec, mc1n2);
+	// codec->drvdata = mc1n2;
 
 	pdata = client->dev.platform_data;
 
